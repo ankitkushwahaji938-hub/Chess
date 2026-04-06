@@ -1,201 +1,128 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mobile Voice Chess - Hindi</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Simple Mobile Chess</title>
+    
+    <!-- External Libraries (CDN) -->
+    <!-- jQuery (Required for Chessboard.js) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <!-- Chessboard.js CSS -->
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <!-- Chessboard.js JS -->
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <!-- Chess.js (Game Logic) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 
     <style>
-        /* --- Mobile First Design --- */
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
+        /* Mobile-Friendly CSS */
         body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background-color: #222;
             color: white;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 0;
-            height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            touch-action: none;
-        }
-
-        .header {
-            text-align: center;
-            padding: 12px;
-            font-size: 1.3rem;
-            font-weight: bold;
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .board-container {
-            flex-grow: 1;
-            display: flex;
-            justify-content: center;
             align-items: center;
-            padding: 15px;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden; /* Prevent scrolling */
         }
 
+        h1 {
+            margin: 10px 0;
+            font-size: 1.5rem;
+        }
+
+        #board-container {
+            width: 95vw;
+            max-width: 500px;
+            /* Aspect ratio 1:1 for square board */
+            aspect-ratio: 1 / 1; 
+            margin-bottom: 20px;
+        }
+
+        /* Important: Prevents scrolling on mobile when dragging pieces */
         #board {
-            width: 92vw;
-            height: 92vw;
-            max-width: 400px;
-            max-height: 400px;
-            border-radius: 8px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            width: 100%;
+            height: 100%;
+            touch-action: none; 
         }
 
-        /* Status Bar */
-        #status {
-            text-align: center;
-            padding: 10px;
-            font-size: 1.1rem;
-            background: linear-gradient(90deg, #e74c3c, #e67e22);
-            font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }
-
-        /* Controls Area */
         .controls {
             display: flex;
-            justify-content: space-around;
-            padding: 15px 10px;
-            background: rgba(0, 0, 0, 0.3);
-            gap: 10px;
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
         button {
-            flex: 1;
-            max-width: 120px;
-            background: linear-gradient(180deg, #ecf0f1 0%, #bdc3c7 100%);
-            color: #2c3e50;
+            padding: 12px 24px;
+            font-size: 1rem;
+            background-color: #4CAF50;
+            color: white;
             border: none;
-            padding: 14px 10px;
-            font-size: 0.95rem;
-            font-weight: bold;
-            border-radius: 12px;
+            border-radius: 8px;
             cursor: pointer;
-            box-shadow: 0 4px 0 #95a5a6, 0 6px 10px rgba(0,0,0,0.3);
-            transition: all 0.1s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background 0.2s;
         }
 
         button:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 #95a5a6, 0 2px 5px rgba(0,0,0,0.3);
+            background-color: #45a049;
+            transform: translateY(2px);
         }
 
-        /* Button Colors */
-        #undoBtn {
-            background: linear-gradient(180deg, #f1c40f 0%, #f39c12 100%);
-            box-shadow: 0 4px 0 #d4ac0d, 0 6px 10px rgba(0,0,0,0.3);
-            color: #1a1a2e;
+        button.secondary {
+            background-color: #f44336;
         }
-        #undoBtn:active { box-shadow: 0 0 0 #d4ac0d; }
 
-        #flipBtn {
-            background: linear-gradient(180deg, #3498db 0%, #2980b9 100%);
-            box-shadow: 0 4px 0 #2471a3, 0 6px 10px rgba(0,0,0,0.3);
-            color: white;
-        }
-        #flipBtn:active { box-shadow: 0 0 0 #2471a3; }
-
-        #resetBtn {
-            background: linear-gradient(180deg, #e74c3c 0%, #c0392b 100%);
-            box-shadow: 0 4px 0 #a93226, 0 6px 10px rgba(0,0,0,0.3);
-            color: white;
-        }
-        #resetBtn:active { box-shadow: 0 0 0 #a93226; }
-
-        /* Turn Indicator */
-        .turn-indicator {
-            position: absolute;
-            top: 60px;
-            right: 10px;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
+        #status {
+            margin-top: 10px;
+            font-size: 1.2rem;
             font-weight: bold;
+            color: #ddd;
+            text-align: center;
         }
-        .turn-white { background: white; color: black; }
-        .turn-black { background: black; color: white; border: 1px solid white; }
-
     </style>
 </head>
 <body>
 
-    <div class="header">🎮 दो खिलाड़ी शतरंज</div>
+    <h1>Mobile Chess</h1>
     
-    <div id="status">शुरू करें - सफेद की बारी</div>
-
-    <div class="board-container">
+    <div id="board-container">
         <div id="board"></div>
     </div>
 
+    <div id="status">White's Turn</div>
+
     <div class="controls">
-        <button id="undoBtn">↩ वापस</button>
-        <button id="flipBtn">🔄 पलटो</button>
-        <button id="resetBtn">🔁 शुरू</button>
+        <button onclick="undoMove()">Undo</button>
+        <button class="secondary" onclick="restartGame()">Restart</button>
     </div>
 
-    <!-- Dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
-
     <script>
-        // --- Game Initialization ---
-        var game = new Chess();
+        // --- Game Configuration ---
         var board = null;
-        var currentOrientation = 'white';
+        var game = new Chess();
+        var $status = $('#status');
 
-        // --- Voice Synthesis Setup (Fast Speed) ---
+        // --- Voice Feedback System ---
+        // Uses browser native SpeechSynthesis (No API Key needed)
         function speak(text) {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                
-                var utterance = new SpeechSynthesisUtterance(text);
-                utterance.rate = 1.8; // Very fast speed
-                utterance.pitch = 1.0;
-                utterance.volume = 1.0;
-                window.speechSynthesis.speak(utterance);
-            }
+            // Cancel any currently playing speech to make it snappy
+            window.speechSynthesis.cancel();
+
+            var utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.2; // Speed: 1.0 is normal, 1.2 is slightly faster
+            utterance.pitch = 1.0;
+            
+            window.speechSynthesis.speak(utterance);
         }
 
-        // --- Dynamic Piece Theme with Rotation ---
-        // This function rotates pieces so they always face the current player
-        function getPieceTheme(piece) {
-            // Base URL for chess pieces
-            var baseUrl = 'https://chessboardjs.com/img/chesspieces/wikipedia/';
-            var pieceFile = piece + '.png';
-            
-            // If board is flipped (black perspective), rotate pieces 180 degrees
-            if (currentOrientation === 'black') {
-                // Return SVG with rotation transform
-                return 'data:image/svg+xml;base64,' + btoa(
-                    '<svg xmlns="http://www.w3.org/2000/svg" width="45" height="45">' +
-                    '<image href="' + baseUrl + pieceFile + '" width="45" height="45" transform="rotate(180, 22.5, 22.5)" />' +
-                    '</svg>'
-                );
-            }
-            
-            // Normal orientation (white perspective)
-            return baseUrl + pieceFile;
-        }
-
-        // --- UI Configuration ---
+        // --- Game Logic: Drag & Drop ---
         function onDragStart(source, piece, position, orientation) {
+            // Do not pick up pieces if the game is over
             if (game.game_over()) return false;
 
             // Only pick up pieces for the side to move
@@ -206,103 +133,96 @@
         }
 
         function onDrop(source, target) {
+            // 1. Check if move is legal
             var move = game.move({
                 from: source,
                 to: target,
-                promotion: 'q' 
+                promotion: 'q' // NOTE: always promote to a queen for simplicity
             });
 
+            // 2. Illegal move? Snapback.
             if (move === null) return 'snapback';
 
-            handleVoiceFeedback(move);
-            updateStatus();
-        }
+            // 3. Voice Feedback Logic
+            // We check the state AFTER the move is applied
+            
+            // Check for Capture
+            if (move.captured) {
+                speak("Nice capture");
+            } 
+            // Check for Check
+            else if (game.in_check()) {
+                speak("Check");
+            } 
+            // Normal Move
+            else {
+                speak("Good move");
+            }
 
-        function handleVoiceFeedback(move) {
-            if (game.in_checkmate()) {
-                speak("खेल समाप्त। चेकमेट।");
-            } else if (game.in_check()) {
-                speak("चेक।");
-            } else if (move.captured) {
-                speak("बढ़िया कैप्चर।");
+            // Check for Game Over conditions
+            if (game.game_over()) {
+                speak("Game over");
+                updateStatus();
             } else {
-                speak("अच्छी चाल।");
+                updateStatus();
             }
         }
 
+        // Update the board position after the piece snap
+        // for castling, en passant, pawn promotion
         function onSnapEnd() {
             board.position(game.fen());
         }
 
+        // --- UI Controls ---
         function updateStatus() {
             var status = '';
-            var moveColor = (game.turn() === 'b') ? 'काला' : 'सफेद';
+            var moveColor = (game.turn() === 'b') ? 'Black' : 'White';
 
             if (game.in_checkmate()) {
-                status = 'खेल समाप्त! ' + moveColor + ' को चेकमेट।';
+                status = 'Game over, ' + moveColor + ' is in checkmate.';
             } else if (game.in_draw()) {
-                status = 'खेल समाप्त। ड्रॉ।';
+                status = 'Game over, drawn position';
             } else {
-                status = moveColor + ' की बारी';
+                status = moveColor + "'s turn";
                 if (game.in_check()) {
-                    status += ' (चेक में!)';
+                    status += ', ' + moveColor + ' is in check';
                 }
             }
 
-            $('#status').text(status);
+            $status.text(status);
         }
 
-        // --- Board Configuration ---
+        function restartGame() {
+            game.reset();
+            board.start();
+            updateStatus();
+            speak("New game started");
+        }
+
+        function undoMove() {
+            game.undo(); // undo the last move
+            board.position(game.fen());
+            updateStatus();
+            // Optional: Don't speak on undo to keep flow smooth
+        }
+
+        // --- Initialization ---
         var config = {
             draggable: true,
             position: 'start',
-            orientation: 'white',
             onDragStart: onDragStart,
             onDrop: onDrop,
             onSnapEnd: onSnapEnd,
-            pieceTheme: getPieceTheme
+            orientation: 'white' // White pieces at the bottom
         };
 
-        // --- Initialize Board ---
+        // Initialize Board
         board = Chessboard('board', config);
         updateStatus();
 
-        // --- Button Functions ---
-        $('#undoBtn').on('click', function() {
-            if (game.history().length > 0) {
-                game.undo();
-                board.position(game.fen());
-                updateStatus();
-                speak("वापस हो गया");
-            } else {
-                speak("वापस लेने के लिए कोई चाल नहीं");
-            }
-        });
-
-        $('#resetBtn').on('click', function() {
-            game.reset();
-            board.start();
-            currentOrientation = 'white';
-            board.orientation('white');
-            updateStatus();
-            speak("नया खेल शुरू");
-        });
-
-        $('#flipBtn').on('click', function() {
-            board.flip();
-            currentOrientation = (currentOrientation === 'white') ? 'black' : 'white';
-            board.position(game.fen()); // Refresh pieces with new orientation
-            speak("बोर्ड पलट गया");
-        });
-
-        // --- Responsive Resize ---
+        // Handle window resize to keep board responsive
         $(window).resize(board.resize);
-
-        // --- Prevent Default Touch Actions ---
-        document.addEventListener('touchmove', function(e) {
-            e.preventDefault();
-        }, { passive: false });
-
     </script>
 </body>
 </html>
