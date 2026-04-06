@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Mobile Chess with Voice</title>
+    
+    <!-- CSS for Chessboard.js -->
+    <link rel="stylesheet"
+      href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css"
+      integrity="sha384-q94+BZtLrkL1/ohfjR8c6L+A6qzNH9R2hBLwyoAfu3i/WCvQjzL2RQJ3uNHDISdU"
+      crossorigin="anonymous">
+
+    <style>
+        /* --- UI Design --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #222;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling on mobile */
+        }
+
+        h1 {
+            margin: 10px 0;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #board {
+            width: 92vw;
+            max-width: 450px; /* Keeps board size reasonable on desktop */
+            margin: 10px auto;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            width: 92vw;
+            max-width: 450px;
+            justify-content: center;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 0;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.1s;
+            /* Touch feedback */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:active {
+            transform: scale(0.96);
+        }
+
+        #btn-restart {
+            background-color: #e74c3c;
+            box-shadow: 0 4px #c0392b;
+        }
+
+        #btn-undo {
+            background-color: #f39c12;
+            box-shadow: 0 4px #d35400;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-size: 1.1rem;
+            color: #bdc3c7;
+            min-height: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Mobile Chess</h1>
+    
+    <!-- Chessboard Container -->
+    <div id="board"></div>
+
+    <!-- Status Text -->
+    <div id="status">White to move</div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <button id="btn-undo">Undo Move</button>
+        <button id="btn-restart">Restart Game</button>
+    </div>
+
+    <!-- --- Dependencies --- -->
+    <!-- jQuery (Required for Chessboard.js) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <!-- jQuery UI (Required for Chessboard.js) -->
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <!-- Touch Punch (Fix for Drag & Drop on Mobile) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+    <!-- Chess.js (Game Logic) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <!-- Chessboard.js (UI) -->
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+
+    <script>
+        // --- Game Initialization ---
+        var board = null;
+        var game = new Chess();
+        var $status = $('#status');
+        var $fen = $('#fen');
+        var $pgn = $('#pgn');
+
+        // --- Voice Feedback Function ---
+        function speak(text) {
+            // Cancel any currently speaking text to make responses snappy
+            window.speechSynthesis.cancel(); 
+            
+            var utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.2; // Speed: 1 is normal, 1.2 is slightly faster
+            utterance.pitch = 1;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // --- Update Game Status (Visual) ---
+        function updateStatus() {
+            var status = '';
+            var moveColor = (game.turn() === 'b') ? 'Black' : 'White';
+
+            if (game.in_checkmate()) {
+                status = 'Game over, ' + moveColor + ' is in checkmate.';
+                speak("Game over");
+            } else if (game.in_draw()) {
+                status = 'Game over, drawn position';
+                speak("Draw");
+            } else {
+                status = moveColor + ' to move';
+                if (game.in_check()) {
+                    status += ', ' + moveColor + ' is in check';
+                }
+            }
+            $status.text(status);
+        }
+
+        // --- Move Logic (Drag & Drop) ---
+        function onDragStart(source, piece, position, orientation) {
+            // Do not pick up pieces if the game is over
+            if (game.game_over()) return false;
+
+            // Only allow the player to pick up their own color pieces
+            if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+                (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+                return false;
+            }
+        }
+
+        function onDrop(source, target) {
+            // 1. Try the move
+            var move = game.move({
+                from: source,
+                to: target,
+                promotion: 'q' // NOTE: Always promote to a queen for simplicity
+            });
+
+            // 2. If illegal move, snapback
+            if (move === null) return 'snapback';
+
+            // 3. Voice Feedback Logic based on move properties
+            // Priority: Checkmate > Check > Capture > Normal
+            
+            // Note: game.in_checkmate() is checked in updateStatus(), 
+            // but we can check it here specifically for immediate voice feedback order.
+            
+            if (game.in_checkmate()) {
+                speak("Game over");
+            } else if (game.in_check()) {
+                speak("Check");
+            } else if (move.captured) {
+                // If a piece was captured
+                speak("Nice capture");
+            } else {
+                // Normal move
+                speak("Good move");
+            }
+
+            updateStatus();
+        }
+
+        // --- Update Board Position (Animation) ---
+        function onSnapEnd() {
+            board.position(game.fen());
+        }
+
+        // --- Initialize Board ---
+        var config = {
+            draggable: true,
+            position: 'start',
+            onDragStart: onDragStart,
+            onDrop: onDrop,
+            onSnapEnd: onSnapEnd,
+            snapSpeed: 200, // Fast snap for responsiveness
+        };
+        
+        board = Chessboard('board', config);
+
+        // --- Button Event Listeners ---
+        
+        // Restart Game
+        $('#btn-restart').on('click', function() {
+            game.reset();
+            board.start();
+            updateStatus();
+            speak("New game started");
+        });
+
+        // Undo Move
+        $('#btn-undo').on('click', function() {
+            game.undo(); // Undo last move
+            board.position(game.fen()); // Update board
+            updateStatus();
+            speak("Move undone");
+        });
+
+        // Initialize Status
+        updateStatus();
+
+        // Handle window resize to keep board responsive
+        $(window).resize(board.resize);
+    </script>
+</body>
+</html>
